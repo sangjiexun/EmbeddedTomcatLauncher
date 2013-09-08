@@ -1,0 +1,109 @@
+<project name="project" default="default" xmlns:fx="javafx:com.sun.javafx.tools.ant">
+	<description>description</description>
+
+	<property
+		name="jdk_home"
+		value="C:\Java\jdk1.7.0_25" />
+
+	<!-- JavaFXのランタイムへのクラスパス(コンパイル時) -->
+	<property
+		name="javafx.rt.jar"
+		value="${jdk_home}\jre\lib\jfxrt.jar"/>
+
+	<!-- JavaFXの配備ツール -->
+	<property
+		name="javafx.tools.ant.jar"
+		value="${jdk_home}\lib\ant-javafx.jar"/>
+
+	<taskdef resource="com/sun/javafx/tools/ant/antlib.xml"
+			uri="javafx:com.sun.javafx.tools.ant"
+			classpath="${javafx.tools.ant.jar}"/>
+
+	<target name="default">
+		<delete dir="work"/>
+		<mkdir dir="work"/>
+
+		<!-- =========================
+			起動部のコンパイル
+			(Webアプリ部はしない)
+		============================ -->
+
+		<javac
+			srcdir="src"
+			destdir="work"
+			source="1.7"
+			debug="true">
+			<classpath>
+				<filelist>
+					<file name="${javafx.rt.jar}"/>
+				</filelist>
+				<fileset dir="lib">
+					<include name="**/*.jar"/>
+				</fileset>
+			</classpath>
+		</javac>
+
+		<!-- =========================
+			Swingの実行可能jarの生成
+		============================ -->
+
+		<!-- 実行可能jarが参照するライブラリのクラスパス -->
+		<property
+			name="jarClassPath"
+			value="lib/derby.jar lib/ecj-4.2.2.jar lib/tomcat-embed-core.jar lib/tomcat-embed-jasper.jar lib/tomcat-embed-logging-juli.jar"/>
+
+		<jar basedir="work" destfile="SimpleServer1.jar">
+			<manifest>
+				<attribute name="Main-Class" value="jp.seraphyware.embeddedtomcat.SimpleServerConfigurator1" />
+				<attribute name="Class-Path" value="${jarClassPath}" />
+			</manifest>
+		</jar>
+
+		<jar basedir="work" destfile="SimpleServer2.jar">
+			<manifest>
+				<attribute name="Main-Class" value="jp.seraphyware.embeddedtomcat.SimpleServerConfigurator2" />
+				<attribute name="Class-Path" value="${jarClassPath}" />
+			</manifest>
+		</jar>
+
+		<jar basedir="work" destfile="SimpleServer3.jar">
+			<manifest>
+				<attribute name="Main-Class" value="jp.seraphyware.embeddedtomcat.SimpleServerConfigurator3" />
+				<attribute name="Class-Path" value="${jarClassPath}" />
+			</manifest>
+		</jar>
+
+		<!-- =========================
+			JavaFXの実行可能jarの生成
+		============================ -->
+
+		<property name="appName" value="SimpleServerWithSwingBrowser"/>
+
+		<fx:application
+			id="app-info"
+			name="${appName}"
+			mainClass="jp.seraphyware.embeddedtomcat.SimpleServerConfigurator4"
+			toolkit="swing"/>
+
+		<!-- JavaFXのほかに必要とするライブラリへのクラスパス -->
+		<fx:resources id="appRes" >
+			<fx:fileset dir="." includes="lib/*.jar"/>
+		</fx:resources>
+
+		<fx:jar destfile="${appName}.jar">
+			<fx:application refid="app-info" />
+			<fx:resources refid="appRes"/>
+
+			<manifest>
+				<attribute name="Implementation-Vendor" value="seraphyware" />
+				<attribute name="Implementation-Title" value="${appName}" />
+				<attribute name="Implementation-Version" value="1.0" />
+			</manifest>
+
+			<fileset dir="work" />
+		</fx:jar>
+
+		<delete dir="work"/>
+	</target>
+
+</project>

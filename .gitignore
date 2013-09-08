@@ -1,6 +1,11 @@
 *.class
 
 # Package Files #
-*.jar
-*.war
-*.ear
+/bin
+/work
+/db
+/logs
+/SimpleServer1.jar
+/SimpleServer2.jar
+/SimpleServer3.jar
+/SimpleServerWithSwingBrowser.jar
