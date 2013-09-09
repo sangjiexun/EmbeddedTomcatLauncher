@@ -24,10 +24,9 @@
 		<mkdir dir="work"/>
 
 		<!-- =========================
-			起動部のコンパイル
+			Tomcat起動部コンパイル
 			(Webアプリ部はしない)
 		============================ -->
-
 		<javac
 			srcdir="src"
 			destdir="work"
@@ -40,6 +39,9 @@
 				<fileset dir="lib">
 					<include name="**/*.jar"/>
 				</fileset>
+				<filelist dir=".">
+					<file name="bridge.jar"/>
+				</filelist>
 			</classpath>
 		</javac>
 
@@ -76,18 +78,44 @@
 		<!-- =========================
 			JavaFXの実行可能jarの生成
 		============================ -->
+		<delete dir="work"/>
+		<mkdir dir="work"/>
 
-		<property name="appName" value="SimpleServerWithSwingBrowser"/>
+		<!-- JavaFX起動部(スタブ)のコンパイル -->
+		<javac
+			srcdir="startupsrc"
+			destdir="work"
+			source="1.7"
+			debug="true">
+			<classpath>
+				<filelist>
+					<file name="${javafx.rt.jar}"/>
+				</filelist>
+				<fileset dir="lib">
+					<include name="**/*.jar"/>
+				</fileset>
+				<filelist dir=".">
+					<file name="SimpleServer1.jar"/>
+				</filelist>
+			</classpath>
+		</javac>
+
+		<property name="appName" value="EmbeddedTomcatLauncher"/>
 
 		<fx:application
 			id="app-info"
 			name="${appName}"
-			mainClass="jp.seraphyware.embeddedtomcat.SimpleServerConfigurator4"
+			mainClass="jp.seraphyware.embeddedtomcat.EmbeddedTomcatLauncher"
 			toolkit="swing"/>
 
-		<!-- JavaFXのほかに必要とするライブラリへのクラスパス -->
+		<!--
+			JavaFXのほかに必要とする、各種ライブラリへのクラスパスを定義する.
+			Tomcat, Derbyなどのライブラリのクラスと、アプリ本体(Tomcat起動部)クラスが
+			同一のクラスローダで読み込まれるように、アプリ本体もjar化しリソースとする.
+		-->
 		<fx:resources id="appRes" >
 			<fx:fileset dir="." includes="lib/*.jar"/>
+			<fx:fileset dir="." includes="SimpleServer1.jar"/>
 		</fx:resources>
 
 		<fx:jar destfile="${appName}.jar">
@@ -95,7 +123,7 @@
 			<fx:resources refid="appRes"/>
 
 			<manifest>
-				<attribute name="Implementation-Vendor" value="seraphyware" />
+				<attribute name="Implementation-Vendor" value="Seraphyware" />
 				<attribute name="Implementation-Title" value="${appName}" />
 				<attribute name="Implementation-Version" value="1.0" />
 			</manifest>

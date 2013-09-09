@@ -2,22 +2,29 @@ package jp.seraphyware.embeddedtomcat;
 
 import java.io.File;
 import java.io.IOException;
-import java.security.SecureRandom;
+import java.net.SocketException;
 import java.util.logging.Logger;
 
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequestEvent;
 import javax.servlet.ServletRequestListener;
 import javax.servlet.http.HttpServletRequest;
-import javax.xml.bind.DatatypeConverter;
+
+import jp.seraphyware.embeddedtomcat.data.UniqueKeyFactory;
+import jp.seraphyware.embeddedtomcat.servlet.MyServletFilter;
 
 import org.apache.catalina.Host;
+import org.apache.catalina.connector.Connector;
 import org.apache.catalina.core.StandardContext;
+import org.apache.catalina.core.StandardService;
+import org.apache.catalina.core.StandardThreadExecutor;
 import org.apache.catalina.deploy.FilterDef;
 import org.apache.catalina.deploy.FilterMap;
+import org.apache.catalina.valves.AccessLogValve;
 
 /**
  * ウェブアプリケーションの構成をweb.xmlではなく、プログラム的にカスタマイズする場合の方法例.<br>
+ * また、HTTPS接続の設定と、アクセスログも追加する.<br>
  */
 public class SimpleServerConfigurator4 extends SimpleServerConfigurator3 {
 
@@ -66,6 +73,65 @@ public class SimpleServerConfigurator4 extends SimpleServerConfigurator3 {
         // リクエスト属性のイベントハンドリングする
         // --------------------------------
         addRequestEventListeners();
+
+        // --------------------------------
+        // ハイプライン処理にアクセスログを追加する.
+        // --------------------------------
+        initAccessLog();
+    }
+
+    /**
+     * HTTP/HTTPS接続用コネクタを設定する.
+     */
+    @Override
+    protected void initConnectors() throws IOException, SocketException {
+        // HTTPアクセス用コネクタの設定
+        super.initConnectors();
+
+        // HTTPS用アクセスのためのスレッドプールの設定
+        StandardService service = (StandardService) tomcat.getService();
+
+        StandardThreadExecutor executor2 = new StandardThreadExecutor();
+        executor2.setName("executor2");
+        executor2.setNamePrefix("executor2-");
+        service.addExecutor(executor2);
+
+        // Java標準のKeyStoreで証明書を用いる場合は、プロトコルを明示しておく。
+        // "HTTP/1.1"で指定すると、APRが有効な場合はOpenSSLによるソケットが
+        // 作られるため、証明書もder, crtファイルが必要となる.
+        Connector connector2 = new Connector("org.apache.coyote.http11.Http11Protocol");
+        setExecutor(connector2, executor2);
+
+        // HTTPSコネクタの設定
+        connector2.setPort(443); // HTTPS
+        connector2.setScheme("https");
+        connector2.setSecure(true);
+        connector2.setAttribute("SSLEnabled", true);
+        connector2.setAttribute("sslProtocol", "TLS");
+        connector2.setAttribute("bindOnInit", "false");
+
+        // 圧縮を有効化
+        enableCompression(connector2);
+
+        // ↓クライアント証明書の必要有無
+        // http://tomcat.apache.org/tomcat-7.0-doc/ssl-howto.html
+        connector2.setAttribute("clientAuth", "false");
+
+        // SSL用のサーバー証明書を格納したKeyStoreを指定.
+        // 以下のコマンドで自己署名の証明書を作成.
+        // keytool -genkey -keyalg RSA -alias sslkey -keystore keystore.jks
+        //    -storepass password -validity 3600 -keysize 2048
+        String keyStoreFile = new File(getAppRootDir(), "keystore.jks").getCanonicalPath();
+        connector2.setAttribute("keyAlias", "sslkey");
+        connector2.setAttribute("keystorePass", "password");
+        connector2.setAttribute("keystoreFile", keyStoreFile);
+        service.addConnector(connector2);
+
+        // APRを使う場合はderとcrtファイルのによる証明書の指定方法が必要.
+        // SSLCertificateFile="/usr/local/ssl/server.crt"
+        // SSLCertificateKeyFile="/usr/local/ssl/server.pem"
+        // SSLVerifyClient="optional"
+        // SSLProtocol="TLSv1"
     }
 
     /**
@@ -73,11 +139,9 @@ public class SimpleServerConfigurator4 extends SimpleServerConfigurator3 {
      */
     protected void addFilters() {
         // フィルタ名とクラスを定義する.
-        // クラスローダが分離しており、実行時点ではロードされていないため、
-        // ウェブアプリ内で定義されているMyServletFilterクラスは文字列としてクラス名を指定する必要がある.
         FilterDef myServletFilterDef = new FilterDef();
-        myServletFilterDef.setFilterClass("jp.seraphyware.embeddedtomcat.servlet.MyServletFilter");
-        myServletFilterDef.setFilterName("MyServletFilter");
+        myServletFilterDef.setFilterClass(MyServletFilter.class.getCanonicalName());
+        myServletFilterDef.setFilterName(MyServletFilter.class.getSimpleName());
 
         // フィルタパラメータの設定
         myServletFilterDef.addInitParameter(
@@ -86,7 +150,7 @@ public class SimpleServerConfigurator4 extends SimpleServerConfigurator3 {
 
         // フィルタマッピングの設定
         FilterMap myServletFilterMap = new FilterMap();
-        myServletFilterMap.setFilterName("MyServletFilter");
+        myServletFilterMap.setFilterName(MyServletFilter.class.getSimpleName());
         myServletFilterMap.addURLPattern("*");
 
         // コンテキストにフィルタ定義とマッピング定義を追加する.
@@ -99,10 +163,8 @@ public class SimpleServerConfigurator4 extends SimpleServerConfigurator3 {
      */
     protected void addRequestEventListeners() {
 
-        // ランダム値を生成するためのジェネレータ
-        // (現状、一応、SecureRandomのnextBytesはsynchronizedされているのでスレッドセーフといえる.)
-        // http://stackoverflow.com/questions/1461568/is-securerandom-thread-safe
-        final SecureRandom rng = new SecureRandom();
+        // ランダムキーを生成するファクトリ
+        final UniqueKeyFactory uniquekeyFactory = new UniqueKeyFactory();
 
         // リクエストイベントリスナを設定する.
         // (addApplicationEventListenerメソッドは、受け取るリスナの型で、さまざまなイベントをハンドルできる.)
@@ -118,11 +180,38 @@ public class SimpleServerConfigurator4 extends SimpleServerConfigurator3 {
                 logger.info("リクエストオブジェクトを初期化します: " + req);
 
                 // ランダム値を生成してリクエストオブジェクトにつける.
-                byte[] r = new byte[20];
-                rng.nextBytes(r);
-                req.setAttribute("random", DatatypeConverter.printHexBinary(r));
+                req.setAttribute("uniqueKey", uniquekeyFactory.create());
             }
         });
+    }
+
+    /**
+     * アクセスログを構成する.
+     * 
+     * @throws IOException
+     */
+    protected void initAccessLog() throws IOException {
+        // --------------------------------
+        // アクセスログを構成する.
+        // --------------------------------
+        File accessLogDir = getLogsDir();
+        String logDir = accessLogDir.getAbsolutePath();
+        AccessLogValve accessLogValve = new AccessLogValve();
+        accessLogValve.setDirectory(logDir);
+        accessLogValve.setPrefix("accesslog");
+        accessLogValve.setPattern(
+                org.apache.catalina.valves.Constants.AccessLog.COMBINED_ALIAS
+                );
+        accessLogValve.setFileDateFormat("yyyy-MM-dd");
+        accessLogValve.setSuffix(".log");
+        accessLogValve.setRenameOnRotate(true);
+        accessLogValve.setRequestAttributesEnabled(true);
+        accessLogValve.setBuffered(false);
+        accessLogValve.setEnabled(true);
+
+        ctx.addValve(accessLogValve);
+        // ↓ エンジン単位に指定する場合
+        // ((StandardEngine) tomcat.getEngine()).addValve(accessLogValve);
     }
 
     /**

@@ -8,4 +8,5 @@
 /SimpleServer1.jar
 /SimpleServer2.jar
 /SimpleServer3.jar
-/SimpleServerWithSwingBrowser.jar
+/EmbeddedTomcatLauncher.jar
+/startupbin

@@ -5,6 +5,9 @@ import java.awt.Container;
 import java.awt.Dimension;
 import java.net.CookieHandler;
 import java.net.CookieManager;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Enumeration;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -24,7 +27,8 @@ import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
 
 /**
- * Tomcatの起動・停止を制御し、 JavaFXによるウェブビューで、自分自身のウェブアプリを 表示できるようにしたメインウィンドウ.<br>
+ * Tomcatの起動・停止を制御し、 JavaFXによるウェブビューで、
+ * 自分自身のウェブアプリを 表示できるようにしたメインウィンドウ.<br>
  * <br>
  * [JavaFX-Swingの連携の参考元(公式ドキュメント)]<br>
  * http://docs.oracle.com/javafx/2/swing/swing-fx-interoperability.htm#CHDIEEJE
@@ -95,6 +99,9 @@ public class EmbeddedServerBrowserFrame extends EmbeddedServerFrame {
 
                 // 各種ハンドラを設定する.
                 setWebEngineHandlers(engine);
+                
+                // 診断メッセージを初期ページとして表示する.
+                loadDiagnostics(engine);
 
                 jfxPanel.setScene(new Scene(webView));
             }
@@ -132,8 +139,44 @@ public class EmbeddedServerBrowserFrame extends EmbeddedServerFrame {
     }
 
     /**
+     * 診断メッセージをロードする.
+     * @param engine ロードするエンジン
+     */
+    private void loadDiagnostics(WebEngine engine) {
+        StringBuilder buf = new StringBuilder();
+        buf.append("<!DOCTYPE html>");
+        buf.append("<title>Diagnostics</title>");
+        buf.append("<h1>Diagnostics</h1>");
+
+        // システムプロパティ一覧
+        buf.append("<h2>System Properties</h2>");
+        ArrayList<String> names = new ArrayList<String>();
+        Enumeration<?> enm = System.getProperties().propertyNames();
+        while (enm.hasMoreElements()) {
+            String name = (String) enm.nextElement();
+            names.add(name);
+        }
+        Collections.sort(names);
+        buf.append("<table border=\"1\"><tr><th style=\"text-align: left;\">name</th><th style=\"text-align: left;\">value</th></tr>");
+        for (String name : names) {
+            String val = System.getProperty(name);
+            val = val.replace("&", "&amp;").replace("<", "&lt;");
+            buf.append("<tr><td>" + name + "</td><td>" + val + "</td></tr>");
+        }
+        buf.append("</table>");
+
+        // その他
+        buf.append("<h2>External</h2>");
+        buf.append("<p><a href=\"http://google.co.jp/\">Go Google!</a></p>");
+
+        // HTMLをロードする.
+        engine.loadContent(buf.toString());
+    }
+
+    /**
      * ブラウザの別ウィンドウを開くハンドラ.<br>
-     * ※ TODO: ウィンドウ名が同一であったとしても区別する方法が不明なため、 現状は、常に新しいウィンドウが開くようにしている.
+     * ※ TODO: ウィンドウ名が同一であったとしても区別する方法が不明なため、
+     * 現状は、常に新しいウィンドウが開くようにしている.
      *
      * @return
      */

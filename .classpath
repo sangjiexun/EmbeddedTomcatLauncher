@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <classpath>
 	<classpathentry kind="src" path="src"/>
+	<classpathentry kind="src" output="startupbin" path="startupsrc"/>
 	<classpathentry kind="src" output="webapp2/WEB-INF/classes" path="websrc2"/>
 	<classpathentry kind="lib" path="lib/ecj-4.2.2.jar"/>
 	<classpathentry kind="lib" path="lib/derby.jar"/>

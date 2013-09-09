@@ -9,6 +9,9 @@ import java.util.logging.Logger;
 import javax.naming.NamingException;
 import javax.servlet.ServletException;
 
+import jp.seraphyware.embeddedtomcat.db.DerbyDataSourceFactory;
+import jp.seraphyware.embeddedtomcat.db.DerbyManager;
+
 import org.apache.catalina.Host;
 import org.apache.catalina.Lifecycle;
 import org.apache.catalina.LifecycleEvent;
@@ -35,6 +38,7 @@ public class SimpleServerConfigurator3 extends SimpleServerConfigurator2 {
      */
     @Override
     public void init() throws IOException, ServletException {
+	// 接続等の初期化
         super.init();
 
         // --------------------------------

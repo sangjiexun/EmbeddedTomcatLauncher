@@ -139,11 +139,6 @@ public class SimpleServerConfigurator2 extends AbstractServerConfigurator {
         executor1.setMaxIdleTime(60 * 1000); // 縮退までのアイドル時間
         service.addExecutor(executor1);
 
-        StandardThreadExecutor executor2 = new StandardThreadExecutor();
-        executor2.setName("executor2");
-        executor2.setNamePrefix("executor2-");
-        service.addExecutor(executor2);
-
         // ---------------------------------------------------------
         // コネクタの設定
         // Tomcatクラスでは、start時にコネクタが未設定の場合はデフォルトのコネクタを必ず作成する.
@@ -225,7 +220,7 @@ public class SimpleServerConfigurator2 extends AbstractServerConfigurator {
      *
      * @param connector
      */
-    private void enableCompression(Connector connector) {
+    protected void enableCompression(Connector connector) {
         connector.setProperty("compression", "on");
         connector.setProperty("compressableMimeType",
                 "text/html,text/xml,text/plain,text/javascript,application/javascript");
