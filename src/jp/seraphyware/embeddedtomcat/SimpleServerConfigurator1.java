@@ -13,8 +13,32 @@ import org.apache.catalina.startup.Tomcat;
 /**
  * 1つのポートと、1つのウェブアプリを起動する最小構成例.<br>
  */
-public class SimpleServerConfigurator1 extends AbstractServerConfigurator {
+public final class SimpleServerConfigurator1 extends AbstractServerConfigurator {
 
+    /**
+     * デフォルトのポート
+     */
+    private int port = 8081;
+
+    /**
+     * コンストラクタ
+     */
+    public SimpleServerConfigurator1() {
+        // リスンするポートをシステムプロパティより取得する.
+        String strPort = System.getProperty("port");
+        if (strPort != null && strPort.trim().length() > 0) {
+            port = Integer.parseInt(strPort);
+        }
+    }
+
+    /**
+     * リスンポートを返す.
+     */
+    @Override
+    public int getPort() {
+        return port;
+    }
+    
     /**
      * もっとも単純なTomcatの独自のスタートアップ方法による初期化.<br>
      */

@@ -31,11 +31,6 @@ import org.apache.catalina.startup.Tomcat;
 public abstract class AbstractServerConfigurator {
 
     /**
-     * デフォルトポート.<br>
-     */
-    protected int port = 8081;
-
-    /**
      * Tomcatインスタンス.<br>
      * 派生クラスで初期化する.<br>
      */
@@ -48,31 +43,27 @@ public abstract class AbstractServerConfigurator {
     protected StandardContext ctx;
 
     /**
-     * 保護されたコンストラクタ.<br>
+     * Tomcatオブジェクト
+     * @return Tomcatオブジェクト
      */
-    protected AbstractServerConfigurator() {
-        // リスンするポートをシステムプロパティより取得する.
-        String strPort = System.getProperty("port");
-        if (strPort != null && strPort.trim().length() > 0) {
-            port = Integer.parseInt(strPort);
-        }
-    }
-
     public Tomcat getTomcat() {
         return tomcat;
     }
 
+    /**
+     * ウェブアプリケーションのコンテキスト
+     * @return
+     */
     public StandardContext getContext() {
         return ctx;
     }
 
-    public int getPort() {
-        return port;
-    }
-
-    public void setPort(int port) {
-        this.port = port;
-    }
+    /**
+     * リスンしているポートを取得する.<br>
+     * まだリスンしていない場合は0.<br>
+     * @return リスンしているポート
+     */
+    public abstract int getPort();
 
     /**
      * Tomcatを構成する.

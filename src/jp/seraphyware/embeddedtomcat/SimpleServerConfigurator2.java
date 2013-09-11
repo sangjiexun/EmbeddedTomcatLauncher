@@ -16,6 +16,8 @@ import java.util.logging.Logger;
 import javax.servlet.ServletException;
 
 import org.apache.catalina.Host;
+import org.apache.catalina.LifecycleEvent;
+import org.apache.catalina.LifecycleListener;
 import org.apache.catalina.connector.Connector;
 import org.apache.catalina.core.StandardContext;
 import org.apache.catalina.core.StandardService;
@@ -26,7 +28,8 @@ import org.apache.catalina.util.ServerInfo;
 import org.apache.coyote.AbstractProtocol;
 
 /**
- * HTTPはローカルマシンからの接続のみ(Loopback)とし、 HTTPSは他マシンからの接続も可とする、1つのウェブアプリケーションの構成例.<br>
+ * HTTPはローカルマシンからの接続のみ(Loopback)とし、 
+ * HTTPSは他マシンからの接続も可とする、1つのウェブアプリケーションの構成例.<br>
  */
 public class SimpleServerConfigurator2 extends AbstractServerConfigurator {
 
@@ -35,6 +38,12 @@ public class SimpleServerConfigurator2 extends AbstractServerConfigurator {
      */
     private static final Logger logger = Logger.getLogger(SimpleServerConfigurator2.class.getName());
 
+    /**
+     * リスンしているポート.<br>
+     * まだバインドしていなければ0.<br>
+     */
+    private int listenPort = 0;
+    
     /**
      * ローカルマシンでのバインドに限定するようにコネクタを構成したTomcatを構成する.<br>
      */
@@ -52,7 +61,7 @@ public class SimpleServerConfigurator2 extends AbstractServerConfigurator {
         tomcat = new Tomcat();
 
         // リスンするポートの指定
-        tomcat.setPort(port);
+        tomcat.setPort(-1);
 
         // --------------------------------
         // ベースディレクトリの指定.
@@ -145,6 +154,9 @@ public class SimpleServerConfigurator2 extends AbstractServerConfigurator {
         // そのため事前にダミーのコネクタ(ポート指定なし)を設定しておくことで、無効化しておく.
         tomcat.setConnector(new Connector("HTTP/1.1"));
 
+        // リスンするポートを自動設定とする
+        listenPort = 0;
+
         // Loopback(localhost)にのみバインドする.
         // IPアドレスを限定してソケットをバインドする場合、
         // IPv6用, IPv4用で、それぞれ異なるコネクタが必要となる.
@@ -161,21 +173,60 @@ public class SimpleServerConfigurator2 extends AbstractServerConfigurator {
             // その他のパラメータについては以下URLを参照
             // http://tomcat.apache.org/tomcat-7.0-doc/config/http.html
 
-            Connector connector1b = new Connector("HTTP/1.1");
-            setExecutor(connector1b, executor1);
+            final Connector connector = new Connector("HTTP/1.1");
+            setExecutor(connector, executor1);
 
-            enableCompression(connector1b);
-            connector1b.setPort(port);
+            enableCompression(connector);
+            connector.setPort(-1); // 初期化開始時まではポートは未設定とする.
 
             // バインドするアドレスを指定
             String address = loopbackAddress.getHostAddress();
-            connector1b.setAttribute("address", address);
-            logger.log(Level.INFO, "bind address=" + address + "/port=" + port);
+            connector.setAttribute("address", address);
+            logger.log(Level.INFO, "bind address=" + address);
 
             // stopでunbindする為
-            connector1b.setAttribute("bindOnInit", "false");
-            service.addConnector(connector1b);
+            connector.setAttribute("bindOnInit", "false");
+            service.addConnector(connector);
+
+            // コネクタの開始・停止のイベントでポートの割り当てを制御するためのリスナ
+            connector.addLifecycleListener(new LifecycleListener() {
+                @Override
+                public void lifecycleEvent(LifecycleEvent event) {
+                    String state = event.getType();
+                    int actualPort = connector.getLocalPort();
+                    logger.info("Connector " + state + "/" +
+                            connector + "/actualPort=" + actualPort);
+
+                    if (Connector.BEFORE_START_EVENT.equals(state)) {
+                        // 開始前イベント.
+                        // 最初のコネクタであれば "0"(Auto)を指定する.
+                        // 以降のコネクタであれば最初のコネクタの実際のポートと
+                        // 同じポート番号を指定する.
+                        connector.setPort(listenPort);
+
+                    } else if (Connector.AFTER_START_EVENT.equals(state)) {
+                        // 開始後イベント.
+                        // 最初のコネクタであれば、自動設定された実際のポートを記録する.
+                        if (actualPort > 0 && listenPort <= 0) {
+                            listenPort = actualPort;
+                        }
+
+                    } else if (Connector.AFTER_STOP_EVENT.equals(state)) {
+                        // 停止後したのでリスンポートは初期値(0=Auto)とする.
+                        listenPort = 0;
+                    }
+                }
+            });
         }
+    }
+    
+    /**
+     * 実際にリスンしているポートを返す.<br>
+     * まだリスンしていない場合は0を返す.<br>
+     */
+    @Override
+    public int getPort() {
+        return listenPort;
     }
 
     /**

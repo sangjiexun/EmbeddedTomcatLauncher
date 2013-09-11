@@ -41,24 +41,14 @@ public class EmbeddedServerFrame extends JFrame {
     private static final Logger logger = Logger.getLogger(EmbeddedServerFrame.class.getName());
 
     /**
-     * Tomcatの組み込みサーバの標準構成をサポートするヘルパ
+     * Tomcatの構成オブジェクト
      */
-    protected Tomcat tomcat;
-
-    /**
-     * ウェブアプリケーションのコンテキスト
-     */
-    protected StandardContext ctx;
+    protected AbstractServerConfigurator configurator;
 
     /**
      * ステータス表示用
      */
     protected JLabel txtStatus = new JLabel();
-
-    /**
-     * リッスンしているポート番号
-     */
-    protected int port;
 
     /**
      * 開始アクション
@@ -155,7 +145,7 @@ public class EmbeddedServerFrame extends JFrame {
      * 初期化
      */
     protected void init(AbstractServerConfigurator configurator) {
-        if (tomcat != null) {
+        if (this.configurator != null) {
             throw new IllegalStateException("already initialized");
         }
         try {
@@ -163,8 +153,8 @@ public class EmbeddedServerFrame extends JFrame {
             configurator.init();
 
             // 初期化されたTomcat構成、ウェブアプリケーションを取得する.
-            tomcat = configurator.getTomcat();
-            ctx = configurator.getContext();
+            Tomcat tomcat = configurator.getTomcat();
+            StandardContext ctx = configurator.getContext();
 
             // --------------------------------
             // ステータスを取得するためのリスナを設定する.
@@ -183,8 +173,8 @@ public class EmbeddedServerFrame extends JFrame {
                 }
             });
 
-            // リッスンしているポートを保存する.
-            port = configurator.getPort();
+            // Tomcatの構成オブジェクトを保存する.
+            this.configurator = configurator;
 
         } catch (IOException | ServletException ex) {
             throw new RuntimeException(ex);
@@ -201,6 +191,9 @@ public class EmbeddedServerFrame extends JFrame {
         String statusServer = "unknown";
         String statusContext = "unknown";
 
+        Tomcat tomcat = configurator.getTomcat();
+        StandardContext ctx = configurator.getContext();
+        
         if (tomcat != null) {
             LifecycleState state = tomcat.getServer().getState();
             statusServer = state.toString();
@@ -228,6 +221,7 @@ public class EmbeddedServerFrame extends JFrame {
     protected void start() {
         try {
             // Tomcatの開始
+            Tomcat tomcat = configurator.getTomcat();
             tomcat.start();
 
         } catch (Exception ex) {
@@ -242,6 +236,7 @@ public class EmbeddedServerFrame extends JFrame {
     protected void stop() {
         try {
             // Tomcatの停止
+            Tomcat tomcat = configurator.getTomcat();
             tomcat.stop();
 
         } catch (Exception ex) {
@@ -258,6 +253,7 @@ public class EmbeddedServerFrame extends JFrame {
         try {
             // Tomcatの破棄
             // デフォルトではdestroyしないとコネクタのポートは解放されない
+            Tomcat tomcat = configurator.getTomcat();
             tomcat.destroy();
 
         } catch (Exception ex) {
@@ -272,6 +268,7 @@ public class EmbeddedServerFrame extends JFrame {
      */
     protected void open() {
         try {
+            int port = configurator.getPort();
             String url = "http://localhost:" + port + "/";
 
             // システム標準のブラウザで開く.

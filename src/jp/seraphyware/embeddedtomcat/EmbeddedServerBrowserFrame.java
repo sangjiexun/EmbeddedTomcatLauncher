@@ -26,6 +26,10 @@ import javax.swing.JDialog;
 import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
 
+import org.apache.catalina.LifecycleEvent;
+import org.apache.catalina.LifecycleListener;
+import org.apache.catalina.core.StandardContext;
+
 /**
  * Tomcatの起動・停止を制御し、 JavaFXによるウェブビューで、
  * 自分自身のウェブアプリを 表示できるようにしたメインウィンドウ.<br>
@@ -63,6 +67,17 @@ public class EmbeddedServerBrowserFrame extends EmbeddedServerFrame {
     public EmbeddedServerBrowserFrame(AbstractServerConfigurator configurator) {
         super(configurator);
         initBrowserComponent();
+
+        // Tomcatサーバが開始したら、ただちにトップページを自動的に開くようにする.
+        configurator.getTomcat().getServer().addLifecycleListener(new LifecycleListener() {
+            @Override
+            public void lifecycleEvent(LifecycleEvent event) {
+                String state = event.getType();
+                if (StandardContext.AFTER_START_EVENT.equals(state)) {
+                    open();
+                }
+            }
+        });
     }
 
     /**
@@ -297,8 +312,27 @@ public class EmbeddedServerBrowserFrame extends EmbeddedServerFrame {
             @Override
             public void run() {
                 // JavaFXのウェブビューに直接URLを指定して開く.
+                int port = configurator.getPort();
                 String url = "http://localhost:" + port + "/";
                 engine.load(url);
+            }
+        });
+    }
+
+    /**
+     * Tomcatの停止
+     */
+    @Override
+    protected void stop() {
+        // Tomcatを停止する.
+        super.stop();
+
+        // 白紙ページにする.
+        // (サーバ停止後も画面が残っているのは不自然のため)
+        Platform.runLater(new Runnable() {
+            @Override
+            public void run() {
+                engine.load("about:blank");
             }
         });
     }

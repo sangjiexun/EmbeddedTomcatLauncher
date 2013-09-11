@@ -3,7 +3,7 @@
 
 	<property
 		name="jdk_home"
-		value="C:\Java\jdk1.7.0_25" />
+		value="C:\Java\jdk1.7.0_40" />
 
 	<!-- JavaFXのランタイムへのクラスパス(コンパイル時) -->
 	<property
